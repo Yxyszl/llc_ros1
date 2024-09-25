@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="lcc_ros1" type="lcc" name="lcc" output="screen">
+    </node>
+</launch>

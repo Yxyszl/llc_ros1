@@ -1,0 +1,14 @@
+$ cd ~/tutorial/lidar_camera_calibration/lcc
+$ catkin_make
+$ source devel/setup.bash
+$ roslaunch lcc_ros1 lcc.launch
+
+$ cd ~/ROS1
+$ source /opt/ros/noetic/setup.bash
+$ source devel/setup.bash
+$ rviz
+
+$ cd ~/ROS1
+$ source /opt/ros/noetic/setup.bash
+$ source devel/setup.bash
+$ roslaunch mlc_ros1 pose_refine.launch
