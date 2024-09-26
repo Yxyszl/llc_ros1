@@ -55,7 +55,7 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
         filter.setFilterLimits(-10, 10);
         filter.filter(*pcd_in_roi);
     }
-    else 
+    else if(position.find("left") != std::string::npos)
     {
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("z");
