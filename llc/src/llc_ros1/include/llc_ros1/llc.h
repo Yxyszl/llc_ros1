@@ -16,18 +16,20 @@
 #include <cv_bridge/cv_bridge.h>
 #include <cmath>
 #include <pcl/filters/voxel_grid.h>
-#include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv/cv.hpp>
-#include "opencv2/aruco.hpp"
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/core/eigen.hpp>
 #include <fstream>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <opencv2/calib3d.hpp>
 #include <json/json.h>
 #include <unordered_map>
+#include <pcl/features/normal_3d.h>
+
+#include <pcl/segmentation/region_growing.h>
+#include <pcl/filters/passthrough.h>
+// #include <pcl/filter/extract_indices.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
+
 
 struct ContourPoint
 {
@@ -52,22 +54,23 @@ struct ContourPointCompare
 // 新增一个结构体来存储处理结果
 struct ChessboardProcessResult
 {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected;
-    pcl::PointCloud<pcl::PointXYZ>::Ptr corners_cloud;
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected;
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr corners_cloud;
     Line3D upRightLineEquation;
     Line3D downRightLineEquation;
     Line3D downLeftLineEquation;
     Line3D upLeftLineEquation;
-    Eigen::Vector3d uprightlidarcorner;
-    Eigen::Vector3d downrightlidarcorner;
-    Eigen::Vector3d downleftlidarcorner;
-    Eigen::Vector3d upleftlidarcorner;
-    Eigen::Vector3d uprightcentroid;
-    Eigen::Vector3d downrightcentroid;
-    Eigen::Vector3d downleftcentroid;
-    Eigen::Vector3d upleftcentroid;
-    Eigen::Vector3d planecentroid;
-    Eigen::Vector4f planelidar_equation;
+    // Eigen::Vector3f uprightlidarcorner;
+    // Eigen::Vector3f downrightlidarcorner;
+    // Eigen::Vector3f downleftlidarcorner;
+    // Eigen::Vector3f upleftlidarcorner;
+    Eigen::Vector3f uprightcentroid;
+    Eigen::Vector3f downrightcentroid;
+    Eigen::Vector3f downleftcentroid;
+    Eigen::Vector3f upleftcentroid;
+    Eigen::Vector3f planecentroid;
+    // Eigen::Vector4f planelidar_equation;
+    std::vector<double> planelidar_equation;
 };
 
 class LLC
@@ -138,17 +141,14 @@ public:
     bool extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
                            std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &plane_pcds,
                            const std::string &kuangshan);
-                           
-    ChessboardProcessResult processChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
 
+    void Preexecute(const std::string &kuangshan, const std::string &path);
 
-    Line3D upRightLineEquation,
-        downRightLineEquation, downLeftLineEquation, upLeftLineEquation;
+    ChessboardProcessResult processChessboard_left(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
+
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
-    Eigen::Vector3f uprightlidarcorner, downrightlidarcorner, downleftlidarcorner, upleftlidarcorner;
-    Eigen::Vector3f uprightcentroid, downrightcentroid, downleftcentroid, upleftcentroid, planecentroid;
-    std::vector<double> planelidar_equation, planecam_equation;
+
     Eigen::Vector3f r_estimate_vector_radian, r_estimate_vector_degree;
     double T_error, R_error, Reproject_error;
     std::string image_path, lidar_path;

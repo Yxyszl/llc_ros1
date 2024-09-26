@@ -1619,6 +1619,7 @@ void LLC::extractROI(const sensor_msgs::Image::ConstPtr &img, cv::Mat &corner_po
         ROS_INFO_STREAM(" extract image feature end... ");
         corner_points = corner_vectors.t() * 0.001;
     }
+    
 }
 // 使用相机和激光得到的板子信息计算tf
 void LLC::execute()

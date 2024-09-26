@@ -1,7 +1,6 @@
 #include "llc.h"
 #include <iostream>
 
-
 bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
                             std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &plane_pcds,
                             const std::string &kuangshan)
@@ -108,11 +107,11 @@ bool LLC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
                             const pcl::PointIndices &cluster,
                             pcl::PointCloud<pcl::PointXYZ>::Ptr &chessboard_pcd)
 {
-    pcl::ExtractIndices<pcl::PointXYZ> extract;
-    extract.setInputCloud(input_pcd);
-    extract.setIndices(boost::make_shared<pcl::PointIndices>(cluster));
-    extract.setNegative(false);
-    extract.filter(*chessboard_pcd);
+    pcl::ExtractIndices<pcl::PointXYZ>::Ptr extract(new pcl::ExtractIndices<pcl::PointXYZ>);
+    extract->setInputCloud(input_pcd);
+    extract->setIndices(boost::make_shared<pcl::PointIndices>(cluster));
+    extract->setNegative(false);
+    extract->filter(*chessboard_pcd);
 
     pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr plane_model(
         new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(chessboard_pcd));
@@ -143,7 +142,7 @@ bool LLC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
     return false;
 }
 
-// 中距:从得到的激光边界凸出最大的十个点里，筛选出板子的四个角点，四个点顺序顺时针，板子最上面的点为第一个点
+// 从得到的激光边界凸出最大的十个点里，筛选出板子的四个角点，四个点顺序顺时针，板子最上面的点为第一个点
 void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
 {
     if (corners_cloud->points[0].y < 0 && corners_cloud->points[0].x < 0)
@@ -563,6 +562,25 @@ void LLC::extractPointsInUpLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl:
     }
 }
 
+void LLC::projectPointCloudOnLine(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, const Line3D &line, pcl::PointCloud<pcl::PointXYZ>::Ptr &projected_cloud)
+{
+    projected_cloud->clear();
+    projected_cloud->reserve(cloud->size());
+
+    for (const auto &point : cloud->points)
+    {
+        Eigen::Vector3f point_vec(point.x, point.y, point.z);
+        Eigen::Vector3f projection = line.point + (point_vec - line.point).dot(line.direction) * line.direction;
+
+        pcl::PointXYZ projected_point;
+        projected_point.x = projection.x();
+        projected_point.y = projection.y();
+        projected_point.z = projection.z();
+
+        projected_cloud->push_back(projected_point);
+    }
+}
+
 // 根据输入的边界点集合，拟合直线方程
 Line3D LLC::getLidarLineEquation(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
@@ -694,41 +712,16 @@ Eigen::Matrix3f LLC::calculate_A(const Eigen::Vector3f &line_direction)
     return matrix_a;
 }
 
-
-
-
-
-
-void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
+ChessboardProcessResult LLC::processChessboard_left(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud)
 {
-    pcl::visualization::PCLVisualizer viewer("pc_viewer");
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    ChessboardProcessResult result;
+    // result.cloud_projected.reset(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected(new pcl::PointCloud<pcl::PointXYZ>());
-
-    if (pcl::io::loadPCDFile(lidar_path, *cloud))
-    {
-        exit(-1);
-    }
-
-    // std::unordered_map<int, pcl::PointXYZ> leftPoints, radarPoints, rightPoints, finalPoints;
-    // extractPlaneCloud(cloud, plane_cloud, kuangshan);
-
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_pcds;
-    if (extractPlaneCloud(input_cloud, plane_pcds, kuangshan))
-    {
-        std::cout << "找到 " << plane_pcds.size() << " 个标定板点云!" << std::endl;
-        // 处理每个标定板点云
-        for (const auto &plane_pcd : plane_pcds)
-        {
-            // 对每个标定板进行后续处理
-        }
-    }
-    else
-    {
-        std::cout << "未找到标定板点云!" << std::endl;
-    }
-    pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    Eigen::Vector3f uprightlidarcorner, downrightlidarcorner, downleftlidarcorner, upleftlidarcorner;
+    Eigen::Vector3f uprightcentroid, downrightcentroid, downleftcentroid, upleftcentroid, planecentroid;
+    Line3D upRightLineEquation, downRightLineEquation, downLeftLineEquation, upLeftLineEquation;
+    std::vector<double> planelidar_equation;
 
     // 把点云投影到一个平面上
     //********************************
@@ -738,10 +731,11 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     seg.setOptimizeCoefficients(true);
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.05);
+    seg.setDistanceThreshold(0.01);
 
     seg.setInputCloud(plane_cloud);
-    seg.segment(*inliers, *coefficients);
+    downleftcentroid
+        seg.segment(*inliers, *coefficients);
     std::cout << "PointCloud after segmentation has: "
               << inliers->indices.size() << " inliers." << std::endl;
 
@@ -752,13 +746,12 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     proj.filter(*cloud_projected);
     std::cerr << "PointCloud after projection has: " << cloud_projected->size() << " data points." << std::endl;
 
-    //********************************
     // 计算整个平面点云的边框点
     //********************************
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_hull(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::ConcaveHull<pcl::PointXYZ> chull;
     chull.setInputCloud(cloud_projected);
-    chull.setAlpha(0.1);
+    chull.setAlpha(0.2);
     chull.reconstruct(*cloud_hull);
 
     int contour_point_size = cloud_hull->points.size();
@@ -766,7 +759,6 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     std::vector<ContourPoint> contour_point_vec;
     contour_point_vec.resize(contour_point_size);
 
-    //********************************
     // 计算边框点相邻俩俩点向量的夹角，并记录下对应夹角的点的索引，进行由大到小排序
     //********************************
     for (int i = 0; i < contour_point_size; i++)
@@ -814,7 +806,6 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     }
     std::sort(contour_point_vec.begin(), contour_point_vec.end(), ContourPointCompare());
 
-    //********************************
     // 取出角度大的前十个，并从中筛选出板子的四个角点
     //********************************
     pcl::PointCloud<pcl::PointXYZ>::Ptr corners_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -829,7 +820,6 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
         corners_cloud->points[i] = cloud_hull->points[index];
     }
     getfourpoints(corners_cloud);
-
     //********************************
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr uprightpoints(new pcl::PointCloud<pcl::PointXYZ>);
@@ -864,7 +854,7 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     upLeftLineEquation = getLidarLineEquation(upleftpoints);
 
     // 对激光和相机得到的板子四条边直线方向归一化
-
+    //********************************
     if (corners_cloud->points[0].x < 0 && corners_cloud->points[0].y < 0)
     {
         if (upRightLineEquation.direction[0] > 0)
@@ -904,6 +894,24 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
         }
     }
 
+    if (upRightCamLineEquation.direction[0] < 0)
+    {
+        upRightCamLineEquation.direction *= -1;
+    }
+    if (downRightCamLineEquation.direction[0] > 0)
+    {
+        downRightCamLineEquation.direction *= -1;
+    }
+    if (downLeftCamLineEquation.direction[0] > 0)
+    {
+        downLeftCamLineEquation.direction *= -1;
+    }
+    if (upLeftCamLineEquation.direction[0] < 0)
+    {
+        upLeftCamLineEquation.direction *= -1;
+    }
+    //********************************
+
     // 投影边界点到对应的直线上
     pcl::PointCloud<pcl::PointXYZ>::Ptr projectuprightpoints(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownrightpoints(new pcl::PointCloud<pcl::PointXYZ>);
@@ -936,10 +944,60 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
 
     // 板子在激光下的平面方程
     planelidar_equation = calculatelidar_plane_equation(cloud_projected);
+
+    result.planelidar_equation = planelidar_equation;
+
+    result.upLeftLineEquation = upLeftLineEquation;
+    result.downLeftLineEquation = downLeftLineEquation;
+    result.downRightLineEquation = downRightLineEquation;
+    result.upRightLineEquation = upRightLineEquation;
+
+    result.uprightcentroid = uprightcentroid;
+    result.downleftcentroid = downleftcentroid;
+    result.downrightcentroid = downrightcentroid;
+    result.upleftcentroid = upleftcentroid;
+
+    result.planecentroid = planecentroid;
+
+    return result;
+}
+
+void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
+{
+    pcl::visualization::PCLVisualizer viewer("pc_viewer");
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected(new pcl::PointCloud<pcl::PointXYZ>());
+
+    if (pcl::io::loadPCDFile(lidar_path, *cloud))
+    {
+        exit(-1);
+    }
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_pcds;
+    extractPlaneCloud(cloud, plane_pcds, kuangshan);
+
+    std::vector<ChessboardProcessResult> results;
+
+    for (const auto &plane_pcd : plane_pcds)
+    {
+        ChessboardProcessResult result = processChessboard(plane_pcd);
+        results.push_back(result);
+
+        // 如果需要，可以在这里对每个结果进行进一步处理或输出
+        std::cout << "Processed chessboard " << results.size() << std::endl;
+        // 例如，打印每个标定板的中心点
+        std::cout << "Chessboard centroid: "
+                  << result.planecentroid.x() << ", "
+                  << result.planecentroid.y() << ", "
+                  << result.planecentroid.z() << std::endl;
+    }
 }
 
 void LLC::execute()
 {
+
+
+    
 }
 
 LLC::~LLC()
