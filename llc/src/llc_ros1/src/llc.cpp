@@ -1,11 +1,20 @@
 #include "llc.h"
 #include <iostream>
 
+LLC::LLC(ros::NodeHandle nh)
+{
+    
+
+    signal(SIGINT, signal_handler);
+    chatter_pub = nh.advertise<sensor_msgs::PointCloud2>("chatter", 1000);
+}
+
+
 bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
                             std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &plane_pcds,
-                            const std::string &kuangshan)
+                            const std::string &position)
 {
-    pass_filter(input_cloud, kuangshan); // 带通滤波
+    pass_filter(input_cloud, position); // 带通滤波
     std::vector<pcl::PointIndices> indices_clusters;
     pcd_clustering(input_cloud, indices_clusters); // 聚类
 
@@ -25,11 +34,11 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
     return found_chessboard;
 }
 
-void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &kuangshan)
+void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &position)
 {
     auto &pcd_in_roi = input_pcd;
     pcl::PassThrough<pcl::PointXYZ> filter;
-    if (kuangshan.find("wuhu") != std::string::npos)
+    if (position.find("left") != std::string::npos)
     {
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("z");
@@ -38,15 +47,15 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
 
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("y");
-        filter.setFilterLimits(-12, 0);
+        filter.setFilterLimits(-20, 0);
         filter.filter(*pcd_in_roi);
 
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("x");
-        filter.setFilterLimits(-5, 5);
+        filter.setFilterLimits(-10, 10);
         filter.filter(*pcd_in_roi);
     }
-    else
+    else 
     {
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("z");
@@ -55,12 +64,12 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
 
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("y");
-        filter.setFilterLimits(-5, 5);
+        filter.setFilterLimits(0, 20);
         filter.filter(*pcd_in_roi);
 
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("x");
-        filter.setFilterLimits(0, 12);
+        filter.setFilterLimits(-10, 10);
         filter.filter(*pcd_in_roi);
     }
 }
@@ -145,7 +154,7 @@ bool LLC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
 // 从得到的激光边界凸出最大的十个点里，筛选出板子的四个角点，四个点顺序顺时针，板子最上面的点为第一个点
 void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
 {
-    if (corners_cloud->points[0].y < 0 && corners_cloud->points[0].x < 0)
+    if (corners_cloud->points[0].y < 0)
     {
         pcl::PointXYZ x_min_point, x_max_point, z_min_point, z_max_point;
         // 寻找最小和最大 x 值以及最小和最大 z 值的四个点
@@ -196,32 +205,32 @@ void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
     }
     else
     {
-        pcl::PointXYZ y_min_point, y_max_point, z_min_point, z_max_point;
-        // 寻找最小和最大 y 值以及最小和最大 z 值的四个点
-        y_min_point = corners_cloud->points[0];
-        y_max_point = corners_cloud->points[0];
+        pcl::PointXYZ x_min_point, x_max_point, z_min_point, z_max_point;
+        // 寻找最小和最大 x 值以及最小和最大 z 值的四个点
+        x_min_point = corners_cloud->points[0];
+        x_max_point = corners_cloud->points[0];
         z_min_point = corners_cloud->points[0];
         z_max_point = corners_cloud->points[0];
 
         for (const auto &point : corners_cloud->points)
         {
-            if (point.y < y_min_point.y)
-                y_min_point = point;
-            if (point.y > y_max_point.y)
-                y_max_point = point;
+            if (point.x < x_min_point.x)
+                x_min_point = point;
+            if (point.x > x_max_point.x)
+                x_max_point = point;
 
             if (point.z < z_min_point.z)
                 z_min_point = point;
             if (point.z > z_max_point.z)
                 z_max_point = point;
         }
-        // 删除除了最小和最大 y 值以及最小和最大 z 值的四个点之外的其他点
+        // 删除除了最小和最大 x 值以及最小和最大 z 值的四个点之外的其他点
         pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
         for (const auto &point : corners_cloud->points)
         {
-            if (point.x == y_min_point.x && point.y == y_min_point.y && point.z == y_min_point.z)
+            if (point.x == x_min_point.x && point.y == x_min_point.y && point.z == x_min_point.z)
                 filtered_cloud->points.push_back(point);
-            else if (point.x == y_max_point.x && point.y == y_max_point.y && point.z == y_max_point.z)
+            else if (point.x == x_max_point.x && point.y == x_max_point.y && point.z == x_max_point.z)
                 filtered_cloud->points.push_back(point);
             else if (point.x == z_min_point.x && point.y == z_min_point.y && point.z == z_min_point.z)
                 filtered_cloud->points.push_back(point);
@@ -237,7 +246,7 @@ void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
         std::cout << "成功提取并删除其他点！" << std::endl;
 
         std::sort(corners_cloud->points.begin(), corners_cloud->points.end(), compareByZ);
-        if (corners_cloud->points[1].y > corners_cloud->points[2].y)
+        if (corners_cloud->points[1].x < corners_cloud->points[2].x)
         {
             std::swap(corners_cloud->points[1], corners_cloud->points[2]);
             std::swap(corners_cloud->points[2], corners_cloud->points[3]);
@@ -254,7 +263,7 @@ void LLC::filterUpandDownRightPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     // 创建临时容器保存满足条件的点
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     filtered_cloud->points.reserve(cloud->size());
-    if (cloud->points[0].y < 0 && cloud->points[0].x < 0)
+    if (cloud->points[0].y < 0)
     {
         for (int i = 0; i < cloud->size(); ++i)
         {
@@ -302,8 +311,8 @@ void LLC::filterUpandDownRightPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
                 if (std::abs(filtered_point.z - z) <= z_threshold)
                 {
                     is_close = true;
-                    // 保留Y值最小的点
-                    if (y < filtered_point.y)
+                    // 保留x值 zuida 的点
+                    if (x < filtered_point.x)
                     {
                         filtered_cloud->points[j] = point;
                     }
@@ -331,7 +340,7 @@ void LLC::filterUpandDownLeftPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     // 创建临时容器保存满足条件的点
     pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     filtered_cloud->points.reserve(cloud->size());
-    if (cloud->points[0].y < 0 && cloud->points[0].x < 0)
+    if (cloud->points[0].y < 0)
     {
         for (int i = 0; i < cloud->size(); ++i)
         {
@@ -379,8 +388,8 @@ void LLC::filterUpandDownLeftPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
                 if (std::abs(filtered_point.z - z) <= z_threshold)
                 {
                     is_close = true;
-                    // 保留Y值最大的点
-                    if (y > filtered_point.y)
+                    // 保留x值最 xiao的点
+                    if (x < filtered_point.x)
                     {
                         filtered_cloud->points[j] = point;
                     }
@@ -400,16 +409,16 @@ void LLC::filterUpandDownLeftPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     cloud->swap(*filtered_cloud);
 }
 
-// 提取中距右上边界点
+// 提取banzi右上边界点--front
 void LLC::extractPointsInUpRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
                                  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud)
 {
     output_cloud->clear();
-    if (fourpoints->points[0].x < 0 && fourpoints->points[0].y < 0)
+    if (fourpoints->points[0].y < 0)
     {
         for (const auto &point : input_cloud.points)
         {
-            // 检查 Y 和 Z 值是否在所需的范围内
+            // 检查 x 和 Z 值是否在所需的范围内
             if (point.x >= fourpoints->points[1].x && point.x <= fourpoints->points[0].x && point.z >= fourpoints->points[1].z && point.z <= fourpoints->points[0].z)
             {
                 output_cloud->points.push_back(point);
@@ -425,8 +434,8 @@ void LLC::extractPointsInUpRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl
     {
         for (const auto &point : input_cloud.points)
         {
-            // 检查 Y 和 Z 值是否在所需的范围内
-            if (point.y >= fourpoints->points[1].y && point.y <= fourpoints->points[0].y && point.z >= fourpoints->points[1].z && point.z <= fourpoints->points[0].z)
+            // 检查 x 和 Z 值是否在所需的范围内
+            if (point.x <= fourpoints->points[1].x && point.x >= fourpoints->points[0].y && point.z >= fourpoints->points[1].z && point.z <= fourpoints->points[0].z)
             {
                 output_cloud->points.push_back(point);
             }
@@ -439,16 +448,16 @@ void LLC::extractPointsInUpRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl
     }
 }
 
-// 提取中距右下边界点
+// 提取banzi右下边界点--front
 void LLC::extractPointsInDownRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
                                    pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud)
 {
     output_cloud->clear();
-    if (fourpoints->points[0].x < 0 && fourpoints->points[0].y < 0)
+    if (fourpoints->points[0].y < 0)
     {
         for (const auto &point : input_cloud.points)
         {
-            // 检查 Y 和 Z 值是否在所需的范围内
+            // 检查 x 和 Z 值是否在所需的范围内
             if (point.x >= fourpoints->points[1].x && point.x <= fourpoints->points[2].x && point.z >= fourpoints->points[2].z && point.z <= fourpoints->points[1].z)
             {
 
@@ -465,8 +474,8 @@ void LLC::extractPointsInDownRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, p
     {
         for (const auto &point : input_cloud.points)
         {
-            // 检查 Y 和 Z 值是否在所需的范围内
-            if (point.y >= fourpoints->points[1].y && point.y <= fourpoints->points[2].y && point.z >= fourpoints->points[2].z && point.z <= fourpoints->points[1].z)
+            // 检查 x 和 Z 值是否在所需的范围内
+            if (point.x <= fourpoints->points[1].x && point.x >= fourpoints->points[2].x && point.z >= fourpoints->points[2].z && point.z <= fourpoints->points[1].z)
             {
 
                 output_cloud->points.push_back(point);
@@ -480,12 +489,12 @@ void LLC::extractPointsInDownRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, p
     }
 }
 
-// 提取中距左下边界点
+// 提取banzi左下边界点--front
 void LLC::extractPointsInDownLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
                                   pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud)
 {
     output_cloud->clear();
-    if (fourpoints->points[0].x < 0 && fourpoints->points[0].y < 0)
+    if (fourpoints->points[0].y < 0)
     {
         for (const auto &point : input_cloud.points)
         {
@@ -507,7 +516,7 @@ void LLC::extractPointsInDownLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pc
         for (const auto &point : input_cloud.points)
         {
             // 检查 Y 和 Z 值是否在所需的范围内
-            if (point.y >= fourpoints->points[2].y && point.y <= fourpoints->points[3].y && point.z >= fourpoints->points[2].z && point.z <= fourpoints->points[3].z)
+            if (point.x <= fourpoints->points[2].x && point.x >= fourpoints->points[3].x && point.z >= fourpoints->points[2].z && point.z <= fourpoints->points[3].z)
             {
 
                 output_cloud->points.push_back(point);
@@ -521,12 +530,12 @@ void LLC::extractPointsInDownLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pc
     }
 }
 
-// 提取中距左上边界点
+// 提取banzi左上边界点--front
 void LLC::extractPointsInUpLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
                                 pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud)
 {
     output_cloud->clear();
-    if (fourpoints->points[0].x < 0 && fourpoints->points[0].y < 0)
+    if (fourpoints->points[0].y < 0)
     {
         for (const auto &point : input_cloud.points)
         {
@@ -547,8 +556,8 @@ void LLC::extractPointsInUpLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl:
     {
         for (const auto &point : input_cloud.points)
         {
-            // 检查 Y 和 Z 值是否在所需的范围内
-            if (point.y >= fourpoints->points[0].y && point.y <= fourpoints->points[3].y && point.z >= fourpoints->points[3].z && point.z <= fourpoints->points[0].z)
+            // 检查 x 和 Z 值是否在所需的范围内
+            if (point.x <= fourpoints->points[0].x && point.x >= fourpoints->points[3].x && point.z >= fourpoints->points[3].z && point.z <= fourpoints->points[0].z)
             {
 
                 output_cloud->points.push_back(point);
@@ -562,6 +571,7 @@ void LLC::extractPointsInUpLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl:
     }
 }
 
+// 将边界点投影到直线上
 void LLC::projectPointCloudOnLine(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, const Line3D &line, pcl::PointCloud<pcl::PointXYZ>::Ptr &projected_cloud)
 {
     projected_cloud->clear();
@@ -608,7 +618,7 @@ Line3D LLC::getLidarLineEquation(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
     return line;
 }
 
-// 计算两个直线的交点，得到激光数据中棋盘格板子的角点
+// 计算两个直线的交点，得到激光数据中板子的角点
 Eigen::Vector3f LLC::computeLineIntersection(const Line3D &line1, const Line3D &line2)
 {
     // 解线性方程组，求解交点坐标
@@ -712,7 +722,8 @@ Eigen::Matrix3f LLC::calculate_A(const Eigen::Vector3f &line_direction)
     return matrix_a;
 }
 
-ChessboardProcessResult LLC::processChessboard_left(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud)
+// 处理左激光标定板点云
+ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud)
 {
     ChessboardProcessResult result;
     // result.cloud_projected.reset(new pcl::PointCloud<pcl::PointXYZ>);
@@ -965,7 +976,9 @@ ChessboardProcessResult LLC::processChessboard_left(pcl::PointCloud<pcl::PointXY
 void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
 {
     pcl::visualization::PCLVisualizer viewer("pc_viewer");
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_left(new pcl::PointCloud<pcl::PointXYZ>());
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_right(new pcl::PointCloud<pcl::PointXYZ>());
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>());
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected(new pcl::PointCloud<pcl::PointXYZ>());
 
@@ -973,31 +986,36 @@ void LLC::Preexecute(const std::string &kuangshan, const std::string &path)
     {
         exit(-1);
     }
-    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_pcds;
-    extractPlaneCloud(cloud, plane_pcds, kuangshan);
 
-    std::vector<ChessboardProcessResult> results;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_pcds_left;
+    std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> plane_pcds_right;
+
+    extractPlaneCloud(cloud_left, plane_pcds_left, left);
+    extractPlaneCloud(cloud_right, plane_pcds_right, right);
+
+    std::vector<ChessboardProcessResult> left_results;
+    std::vector<ChessboardProcessResult> right_results;
 
     for (const auto &plane_pcd : plane_pcds)
     {
-        ChessboardProcessResult result = processChessboard(plane_pcd);
-        results.push_back(result);
-
-        // 如果需要，可以在这里对每个结果进行进一步处理或输出
-        std::cout << "Processed chessboard " << results.size() << std::endl;
-        // 例如，打印每个标定板的中心点
-        std::cout << "Chessboard centroid: "
-                  << result.planecentroid.x() << ", "
-                  << result.planecentroid.y() << ", "
-                  << result.planecentroid.z() << std::endl;
+        ChessboardProcessResult result = processChessboard(plane_pcds_left);
+        left_results.push_back(result);
     }
+
+
+    for (const auto &plane_pcd : plane_pcds)
+    {
+        ChessboardProcessResult result = processChessboard(plane_pcds_right);
+        right_results.push_back(result);
+    }
+
+    
+
+
 }
 
 void LLC::execute()
 {
-
-
-    
 }
 
 LLC::~LLC()

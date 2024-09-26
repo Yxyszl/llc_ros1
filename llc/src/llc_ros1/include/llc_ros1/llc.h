@@ -30,7 +30,6 @@
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
 
-
 struct ContourPoint
 {
     int index;
@@ -132,7 +131,7 @@ public:
     Eigen::Matrix3f calculate_A(const Eigen::Vector3f &line_direction);
     Eigen::Vector3f computeLidarLineCentroid(const cv::Mat &lidar_corner, int index1, int index2);
 
-    void pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &kuangshan);
+    void pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &position);
     void pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters);
     bool check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd);
     bool extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
@@ -140,11 +139,12 @@ public:
                            pcl::PointCloud<pcl::PointXYZ>::Ptr &chessboard_pcd);
     bool extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
                            std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &plane_pcds,
-                           const std::string &kuangshan);
+                           const std::string &position);
 
     void Preexecute(const std::string &kuangshan, const std::string &path);
 
     ChessboardProcessResult processChessboard_left(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
+    ChessboardProcessResult processChessboard_right(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
 
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
