@@ -53,22 +53,15 @@ struct ContourPointCompare
 // 新增一个结构体来存储处理结果
 struct ChessboardProcessResult
 {
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected;
-    // pcl::PointCloud<pcl::PointXYZ>::Ptr corners_cloud;
     Line3D upRightLineEquation;
     Line3D downRightLineEquation;
     Line3D downLeftLineEquation;
     Line3D upLeftLineEquation;
-    // Eigen::Vector3f uprightlidarcorner;
-    // Eigen::Vector3f downrightlidarcorner;
-    // Eigen::Vector3f downleftlidarcorner;
-    // Eigen::Vector3f upleftlidarcorner;
     Eigen::Vector3f uprightcentroid;
     Eigen::Vector3f downrightcentroid;
     Eigen::Vector3f downleftcentroid;
     Eigen::Vector3f upleftcentroid;
     Eigen::Vector3f planecentroid;
-    // Eigen::Vector4f planelidar_equation;
     std::vector<double> planelidar_equation;
 };
 
@@ -128,7 +121,7 @@ public:
                                              const Line3D &downRightCamLineEquation, const Line3D &downLeftCamLineEquation, const Line3D &upLeftCamLineEquation,
                                              const Eigen::Matrix3f &estimated_rotation_matrix, const Eigen::Vector3f &planecentroid, const Eigen::Vector3f &uprightcentroid,
                                              const Eigen::Vector3f &downrightcentroid, const Eigen::Vector3f &downleftcentroid, const Eigen::Vector3f &upleftcentroid);
-    Eigen::Matrix3f calculate_A(const Eigen::Vector3f &line_direction);
+
     Eigen::Vector3f computeLidarLineCentroid(const cv::Mat &lidar_corner, int index1, int index2);
 
     void pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &position);
@@ -141,22 +134,39 @@ public:
                            std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> &plane_pcds,
                            const std::string &position);
 
-    void Preexecute(const std::string &kuangshan, const std::string &path);
+    void Preexecute(const std::string &lidar_path_left, const std::string &lidar_path_right);
 
-    ChessboardProcessResult processChessboard_left(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
-    ChessboardProcessResult processChessboard_right(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
+    ChessboardProcessResult processChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
+    // ChessboardProcessResult processChessboard_right(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
 
+    Eigen::Matrix3f init_estimate_R(const std::vector<ChessboardProcessResult> &left_results, const std::vector<ChessboardProcessResult> &right_results);
+    Eigen::Vector3f init_estimate_t(const std::vector<ChessboardProcessResult> &left_results, const std::vector<ChessboardProcessResult> &right_results, const Eigen::Matrix3f &estimated_rotation_matrix);
+
+    void visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
+                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
+                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
+                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
+                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
+                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
+                              const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
+                              const Line3D &upRightLineEquation,
+                              const Line3D &downRightLineEquation,
+                              const Line3D &downLeftLineEquation,
+                              const Line3D &upLeftLineEquation,
+                              int viewer_id);
+
+    Eigen::Matrix3f calculate_A(const Eigen::Vector3f &l);
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
 
     Eigen::Vector3f r_estimate_vector_radian, r_estimate_vector_degree;
     double T_error, R_error, Reproject_error;
-    std::string image_path, lidar_path;
-    cv::Mat corner_points;
+    std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
+    std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/right_15_1.pcd";
     int boardwidth = 850;
     int boardlength = 1200;
     int squaresize = 120;
-    std::string kuangshan;
-
+    // std::string kuangshan;
+    int viewer_id = 0;
     ~LLC();
 };
