@@ -29,6 +29,7 @@
 // #include <pcl/filter/extract_indices.h>
 #include <pcl/point_types.h>
 #include <pcl/filters/extract_indices.h>
+#include <thread>
 
 struct ContourPoint
 {
@@ -63,6 +64,11 @@ struct ChessboardProcessResult
     Eigen::Vector3f upleftcentroid;
     Eigen::Vector3f planecentroid;
     std::vector<double> planelidar_equation;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_projected;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projectuprightpoints;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownrightpoints;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownleftpoints;
+    pcl::PointCloud<pcl::PointXYZ>::Ptr projectupleftpoints;
 };
 
 class LLC
@@ -148,21 +154,21 @@ public:
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
-                              const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
+                            //   const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
                               const Line3D &upRightLineEquation,
                               const Line3D &downRightLineEquation,
                               const Line3D &downLeftLineEquation,
                               const Line3D &upLeftLineEquation,
                               int viewer_id);
-
+    void visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult> &results);
     Eigen::Matrix3f calculate_A(const Eigen::Vector3f &l);
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
 
     Eigen::Vector3f r_estimate_vector_radian, r_estimate_vector_degree;
     double T_error, R_error, Reproject_error;
-    std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
-    std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/right_15_1.pcd";
+    // std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
+    // std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
     int boardwidth = 850;
     int boardlength = 1200;
     int squaresize = 120;
