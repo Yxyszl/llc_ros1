@@ -17,6 +17,18 @@ find_package(sensor_msgs REQUIRED)
 catkin_package(
  CATKIN_DEPENDS roscpp rospy std_msgs radar_msgs
 )
+add_library(lrc_lib SHARED
+        src/lrc.cpp
+        )
+add_dependencies(lrc_lib radar_msgs_gencpp)
+target_include_directories(lrc_lib PRIVATE
+        ${OpenCV_INCLUDE_DIRS}
+        
+        )
+target_link_libraries(lrc_lib
+        ${catkin_LIBRARIES}
+        ${CERES_LIBRARIES}
+        )
 
 include_directories(
   include/lrc_ros1
@@ -26,8 +38,8 @@ include_directories(
   ${sensor_msgs_INCLUDE_DIRS}
 )
 include_directories(${CMAKE_SOURCE_DIR}/lrc_ros1)
-
 add_executable(lrc src/lrc.cpp)
+add_dependencies(lrc radar_msgs_gencpp)
 target_link_libraries(lrc
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
