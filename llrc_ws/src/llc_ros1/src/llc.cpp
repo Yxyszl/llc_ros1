@@ -6,15 +6,6 @@ std::condition_variable condition_variable;
 
 bool is_exit = false;
 
-// 一个用于启动可视化器的线程函数
-void startVisualizer(pcl::visualization::PCLVisualizer::Ptr viewer)
-{
-    while (!viewer->wasStopped())
-    {
-        viewer->spinOnce(100); // 每隔100ms刷新一次
-    }
-}
-
 // 自定义打印矩阵的函数
 void printmatrixwithcommas(const Eigen::Matrix4f &matrix)
 {
@@ -61,6 +52,7 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
 {
     pass_filter(input_cloud, position); // 带通滤波
     std::vector<pcl::PointIndices> indices_clusters;
+    std::cout<<input_cloud->size()<<std::endl;
     pcd_clustering(input_cloud, indices_clusters); // 聚类
 
     bool found_chessboard = false;
@@ -73,6 +65,8 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
             found_chessboard = true;
             std::cout << "提取到标定板点云!" << std::endl;
             // display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
+        }else{
+            std::cout<<"GG"<<std::endl;
         }
     }
 
@@ -87,7 +81,7 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
     {
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("z");
-        filter.setFilterLimits(-2, 2);
+        filter.setFilterLimits(-3, 3);
         filter.filter(*pcd_in_roi);
 
         filter.setInputCloud(pcd_in_roi);
@@ -104,7 +98,7 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
     {
         filter.setInputCloud(pcd_in_roi);
         filter.setFilterFieldName("z");
-        filter.setFilterLimits(-2, 2);
+        filter.setFilterLimits(-3, 3);
         filter.filter(*pcd_in_roi);
 
         filter.setInputCloud(pcd_in_roi);
@@ -1162,7 +1156,7 @@ void LLC::visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult
     std::vector<std::thread> viewer_threads;
 
     for (size_t i = 0; i < results.size(); ++i) {
-        auto viewer = std::make_shared<pcl::visualization::PCLVisualizer>("查看器 " + std::to_string(i + 1));
+        auto viewer = std::make_shared<pcl::visualization::PCLVisualizer>("biaodingban " + std::to_string(i + 1));
         viewers.push_back(viewer);
 
         viewer_threads.emplace_back([this, viewer, &result = results[i], i]() {
@@ -1206,6 +1200,7 @@ void LLC::Preexecute(const std::string &lidar_path_left, const std::string &lida
 
     if (pcl::io::loadPCDFile(lidar_path_left, *cloud_left))
     {
+        std::cout<<"chucuole"<<std::endl;
         exit(-1);
     }
     if (pcl::io::loadPCDFile(lidar_path_right, *cloud_right))
@@ -1264,8 +1259,8 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "mulity lidar calibration");
     ros::NodeHandle nh;
 
-    std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
-    std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/left_15_1.pcd";
+    std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left.pcd";
+    std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/right.pcd";
 
     LLC read_pcd(nh);
     read_pcd.Preexecute(lidar_path_left, lidar_path_right);
