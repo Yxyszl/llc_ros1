@@ -64,7 +64,7 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
             plane_pcds.push_back(potential_plane);
             found_chessboard = true;
             std::cout << "提取到标定板点云!" << std::endl;
-            // display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
+            display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
         }
         else
         {
@@ -126,7 +126,7 @@ void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::ve
     normal_estimator.compute(*normals);
 
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-    reg.setMinClusterSize(100);
+    reg.setMinClusterSize(90);
     reg.setMaxClusterSize(6000);
     reg.setSearchMethod(tree);
     reg.setNumberOfNeighbours(60);
@@ -151,6 +151,22 @@ bool LLC::check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd)
     if (maxPt.z - minPt.z > max_len)
         return false;
     return true;
+}
+
+void LLC::display_colored_by_depth(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer1(new pcl::visualization::PCLVisualizer("3D Viewer"));
+
+    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> fildColor(cloud, "z"); // 按照z字段进行渲染
+
+    viewer1->addPointCloud<pcl::PointXYZ>(cloud, fildColor, "sample cloud");
+    viewer1->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud"); // 设置点云大小
+
+    while (!viewer1->wasStopped())
+    {
+        viewer1->spinOnce(100);
+        sleep(0.1);
+    }
 }
 
 bool LLC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
@@ -796,10 +812,10 @@ std::vector<double> LLC::calculatelidar_plane_equation(const pcl::PointCloud<pcl
 
 void LLC::visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
-                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
+                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
                             //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
-                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
-                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
+                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
+                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
                                //    const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
                                const Line3D &upRightLineEquation,
                                const Line3D &downRightLineEquation,
@@ -814,21 +830,21 @@ void LLC::visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
     viewer.addPointCloud<pcl::PointXYZ>(cloud_projected, singleColor, "head", viewer_id);
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head", viewer_id);
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> upright_color(projectuprightpoints, 255, 0, 0);
-    viewer.addPointCloud<pcl::PointXYZ>(projectuprightpoints, upright_color, "head1", viewer_id);
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head1", viewer_id);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> upright_color(projectuprightpoints, 255, 0, 0);
+    // viewer.addPointCloud<pcl::PointXYZ>(projectuprightpoints, upright_color, "head1", viewer_id);
+    // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head1", viewer_id);
 
     // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downright_color(projectdownrightpoints, 255, 255, 0);
     // viewer.addPointCloud<pcl::PointXYZ>(projectdownrightpoints, downright_color, "head2", viewer_id);
     // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head2", viewer_id);
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downleft_color(projectdownleftpoints, 0, 0, 255);
-    viewer.addPointCloud<pcl::PointXYZ>(projectdownleftpoints, downleft_color, "head3", viewer_id);
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head3", viewer_id);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downleft_color(projectdownleftpoints, 0, 0, 255);
+    // viewer.addPointCloud<pcl::PointXYZ>(projectdownleftpoints, downleft_color, "head3", viewer_id);
+    // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head3", viewer_id);
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> upleft_color(projectupleftpoints, 0, 255, 255);
-    viewer.addPointCloud<pcl::PointXYZ>(projectupleftpoints, upleft_color, "head4", viewer_id);
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head4", viewer_id);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> upleft_color(projectupleftpoints, 0, 255, 255);
+    // viewer.addPointCloud<pcl::PointXYZ>(projectupleftpoints, upleft_color, "head4", viewer_id);
+    // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head4", viewer_id);
 
     viewer.addLine<pcl::PointXYZ>(visualizeLine(upRightLineEquation)->points[0], visualizeLine(upRightLineEquation)->points[1], "line1");
     viewer.addLine<pcl::PointXYZ>(visualizeLine(downRightLineEquation)->points[0], visualizeLine(downRightLineEquation)->points[1], "line2");
@@ -967,6 +983,8 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     extractPointsInDownRight(contour, corners_cloud, downrightpoints);
     extractPointsInDownLeft(contour, corners_cloud, downleftpoints);
     extractPointsInUpLeft(contour, corners_cloud, upleftpoints);
+
+
     // 过滤影响拟合直线的点
     filterUpandDownRightPoints(uprightpoints);
     filterUpandDownRightPoints(downrightpoints);
@@ -1190,10 +1208,10 @@ void LLC::visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult
                                     {
             visualizePointClouds(*viewer,
                                  result.cloud_projected,
-                                 result.projectuprightpoints,
+                                //  result.projectuprightpoints,
                                 //  result.projectdownrightpoints,
-                                 result.projectdownleftpoints,
-                                 result.projectupleftpoints,
+                                //  result.projectdownleftpoints,
+                                //  result.projectupleftpoints,
                                 //  result.planelidar_equation,
                                  result.upRightLineEquation,
                                  result.downRightLineEquation,
@@ -1286,8 +1304,17 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "mulity lidar calibration");
     ros::NodeHandle nh;
 
-    std::string lidar_path_left = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/17_left.pcd";
-    std::string lidar_path_right = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/17_right.pcd";
+    // 创建一个 Property Tree 对象
+    boost::property_tree::ptree pt;
+
+    // 从 JSON 文件中加载数据
+    boost::property_tree::read_json("/home/conan/llc_ros1/llrc_ws/src/llc_ros1/json/position.json", pt);
+
+    // 从 Property Tree 中提取路径
+    std::string lidar_path_left = pt.get<std::string>("lidar_paths.left");
+    std::string lidar_path_right = pt.get<std::string>("lidar_paths.right");
+    // std::string lidar_path_left = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/22.pcd";
+    // std::string lidar_path_right = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/22.pcd";
 
     LLC read_pcd(nh);
     read_pcd.Preexecute(lidar_path_left, lidar_path_right);

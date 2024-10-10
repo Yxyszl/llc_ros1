@@ -31,6 +31,9 @@
 #include <pcl/filters/extract_indices.h>
 #include <thread>
 
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 struct ContourPoint
 {
     int index;
@@ -130,6 +133,7 @@ public:
 
     Eigen::Vector3f computeLidarLineCentroid(const cv::Mat &lidar_corner, int index1, int index2);
 
+    void display_colored_by_depth(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     void pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &position);
     void pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters);
     bool check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd);
@@ -150,11 +154,11 @@ public:
 
     void visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
-                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
-                            //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
-                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
-                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
-                            //   const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
+                              //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
+                              //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
+                              //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
+                              //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
+                              //   const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
                               const Line3D &upRightLineEquation,
                               const Line3D &downRightLineEquation,
                               const Line3D &downLeftLineEquation,
@@ -178,4 +182,6 @@ public:
     // std::string kuangshan;
     int viewer_id = 0;
     ~LLC();
+
+
 };
