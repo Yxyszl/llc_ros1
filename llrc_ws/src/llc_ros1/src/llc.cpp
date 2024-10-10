@@ -52,7 +52,7 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
 {
     pass_filter(input_cloud, position); // 带通滤波
     std::vector<pcl::PointIndices> indices_clusters;
-    std::cout<<input_cloud->size()<<std::endl;
+    std::cout << input_cloud->size() << std::endl;
     pcd_clustering(input_cloud, indices_clusters); // 聚类
 
     bool found_chessboard = false;
@@ -65,8 +65,10 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
             found_chessboard = true;
             std::cout << "提取到标定板点云!" << std::endl;
             // display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
-        }else{
-            std::cout<<"GG"<<std::endl;
+        }
+        else
+        {
+            std::cout << "GG" << std::endl;
         }
     }
 
@@ -124,7 +126,7 @@ void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::ve
     normal_estimator.compute(*normals);
 
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-    reg.setMinClusterSize(150);
+    reg.setMinClusterSize(100);
     reg.setMaxClusterSize(6000);
     reg.setSearchMethod(tree);
     reg.setNumberOfNeighbours(60);
@@ -674,6 +676,30 @@ Line3D LLC::getLidarLineEquation(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
     return line;
 }
 
+Line3D LLC::translateLineupleft(const Line3D &line, const Line3D &directionline, float distance)
+{
+    Line3D newLine;
+
+    // 判断方向向量，如果方向向量是右上的，则向右下移动
+    if (directionline.direction[1] > 0){
+        // 这里反转方向向量，使其从右上方向移动到右下
+        newLine.point = line.point + distance * (-directionline.direction);
+    } else {
+        // 如果本身就是右下方向，直接按原方向移动
+        newLine.point = line.point + distance * directionline.direction;
+    }
+
+    // 保持直线的方向向量不变
+    newLine.direction = line.direction;
+
+    // 输出新的直线点向式（可以取消注释用于调试）
+    // std::cout << "平移后的点向式：" << std::endl;
+    // std::cout << "点 P': (" << newLine.point[0] << ", " << newLine.point[1] << ", " << newLine.point[2] << ")" << std::endl;
+    // std::cout << "方向向量 V: (" << newLine.direction[0] << ", " << newLine.direction[1] << ", " << newLine.direction[2] << ")" << std::endl;
+
+    return newLine;
+}
+
 // 计算两个直线的交点，得到激光数据中板子的角点
 Eigen::Vector3f LLC::computeLineIntersection(const Line3D &line1, const Line3D &line2)
 {
@@ -771,10 +797,10 @@ std::vector<double> LLC::calculatelidar_plane_equation(const pcl::PointCloud<pcl
 void LLC::visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
-                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
+                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
-                            //    const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
+                               //    const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
                                const Line3D &upRightLineEquation,
                                const Line3D &downRightLineEquation,
                                const Line3D &downLeftLineEquation,
@@ -792,9 +818,9 @@ void LLC::visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
     viewer.addPointCloud<pcl::PointXYZ>(projectuprightpoints, upright_color, "head1", viewer_id);
     viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head1", viewer_id);
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downright_color(projectdownrightpoints, 255, 255, 0);
-    viewer.addPointCloud<pcl::PointXYZ>(projectdownrightpoints, downright_color, "head2", viewer_id);
-    viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head2", viewer_id);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downright_color(projectdownrightpoints, 255, 255, 0);
+    // viewer.addPointCloud<pcl::PointXYZ>(projectdownrightpoints, downright_color, "head2", viewer_id);
+    // viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "head2", viewer_id);
 
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> downleft_color(projectdownleftpoints, 0, 0, 255);
     viewer.addPointCloud<pcl::PointXYZ>(projectdownleftpoints, downleft_color, "head3", viewer_id);
@@ -942,17 +968,17 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     extractPointsInDownLeft(contour, corners_cloud, downleftpoints);
     extractPointsInUpLeft(contour, corners_cloud, upleftpoints);
     // 过滤影响拟合直线的点
-
     filterUpandDownRightPoints(uprightpoints);
     filterUpandDownRightPoints(downrightpoints);
     filterUpandDownLeftPoints(downleftpoints);
     filterUpandDownLeftPoints(upleftpoints);
     // 拟合激光直线
-    upRightLineEquation = getLidarLineEquation(uprightpoints);
-    downRightLineEquation = getLidarLineEquation(downrightpoints);
+
     downLeftLineEquation = getLidarLineEquation(downleftpoints);
     upLeftLineEquation = getLidarLineEquation(upleftpoints);
-
+    upRightLineEquation = getLidarLineEquation(uprightpoints);
+    // downRightLineEquation = getLidarLineEquation(downrightpoints);
+    downRightLineEquation = translateLineupleft(upLeftLineEquation,upRightLineEquation,1.2);
     // 对激光板子四条边直线方向归一化
     //********************************
     if (corners_cloud->points[0].y < 0)
@@ -998,11 +1024,11 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
 
     // 投影边界点到对应的直线上
     pcl::PointCloud<pcl::PointXYZ>::Ptr projectuprightpoints(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownrightpoints(new pcl::PointCloud<pcl::PointXYZ>);
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownrightpoints(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr projectdownleftpoints(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr projectupleftpoints(new pcl::PointCloud<pcl::PointXYZ>);
     projectPointCloudOnLine(uprightpoints, upRightLineEquation, projectuprightpoints);
-    projectPointCloudOnLine(downrightpoints, downRightLineEquation, projectdownrightpoints);
+    // projectPointCloudOnLine(downrightpoints, downRightLineEquation, projectdownrightpoints);
     projectPointCloudOnLine(downleftpoints, downLeftLineEquation, projectdownleftpoints);
     projectPointCloudOnLine(upleftpoints, upLeftLineEquation, projectupleftpoints);
 
@@ -1043,9 +1069,8 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
 
     result.planecentroid = planecentroid;
 
-
     result.cloud_projected = cloud_projected;
-    result.projectdownrightpoints = projectdownrightpoints;
+    // result.projectdownrightpoints = projectdownrightpoints;
     result.projectuprightpoints = projectuprightpoints;
     result.projectdownleftpoints = projectdownleftpoints;
     result.projectupleftpoints = projectupleftpoints;
@@ -1151,19 +1176,22 @@ Eigen::Matrix3f LLC::calculate_A(const Eigen::Vector3f &l)
     return Eigen::Matrix3f::Identity() - l * l.transpose();
 }
 
-void LLC::visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult>& results) {
+void LLC::visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult> &results)
+{
     std::vector<std::shared_ptr<pcl::visualization::PCLVisualizer>> viewers;
     std::vector<std::thread> viewer_threads;
 
-    for (size_t i = 0; i < results.size(); ++i) {
+    for (size_t i = 0; i < results.size(); ++i)
+    {
         auto viewer = std::make_shared<pcl::visualization::PCLVisualizer>("biaodingban " + std::to_string(i + 1));
         viewers.push_back(viewer);
 
-        viewer_threads.emplace_back([this, viewer, &result = results[i], i]() {
+        viewer_threads.emplace_back([this, viewer, &result = results[i], i]()
+                                    {
             visualizePointClouds(*viewer,
                                  result.cloud_projected,
                                  result.projectuprightpoints,
-                                 result.projectdownrightpoints,
+                                //  result.projectdownrightpoints,
                                  result.projectdownleftpoints,
                                  result.projectupleftpoints,
                                 //  result.planelidar_equation,
@@ -1176,16 +1204,15 @@ void LLC::visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult
             while (!viewer->wasStopped()) {
                 viewer->spinOnce(100);
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        });
+            } });
     }
 
     // 等待所有查看器线程结束
-    for (auto& thread : viewer_threads) {
+    for (auto &thread : viewer_threads)
+    {
         thread.join();
     }
 }
-
 
 void LLC::Preexecute(const std::string &lidar_path_left, const std::string &lidar_path_right)
 {
@@ -1200,7 +1227,7 @@ void LLC::Preexecute(const std::string &lidar_path_left, const std::string &lida
 
     if (pcl::io::loadPCDFile(lidar_path_left, *cloud_left))
     {
-        std::cout<<"chucuole"<<std::endl;
+        std::cout << "chucuole" << std::endl;
         exit(-1);
     }
     if (pcl::io::loadPCDFile(lidar_path_right, *cloud_right))
@@ -1227,12 +1254,12 @@ void LLC::Preexecute(const std::string &lidar_path_left, const std::string &lida
         ChessboardProcessResult result = processChessboard(plane_pcd1);
         right_results.push_back(result);
     }
+
     // 可视化左侧结果
     LLC::visualizeMultiplePointClouds(left_results);
 
     // 可视化右侧结果
     LLC::visualizeMultiplePointClouds(right_results);
-
 
     Eigen::Matrix3f rotation_matrix = init_estimate_R(left_results, right_results);
     Eigen::Vector3f estimated_t = init_estimate_t(left_results, right_results, rotation_matrix);
@@ -1259,8 +1286,8 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "mulity lidar calibration");
     ros::NodeHandle nh;
 
-    std::string lidar_path_left = "/home/conan/llc_ros1/llc/in_out/left.pcd";
-    std::string lidar_path_right = "/home/conan/llc_ros1/llc/in_out/right.pcd";
+    std::string lidar_path_left = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/17_left.pcd";
+    std::string lidar_path_right = "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/17_right.pcd";
 
     LLC read_pcd(nh);
     read_pcd.Preexecute(lidar_path_left, lidar_path_right);

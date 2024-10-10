@@ -118,7 +118,7 @@ public:
     std::vector<double> calculatecam_plane_equation(const cv::Mat &points);
     Line3D calculatecamLineEquation(const cv::Mat &points, int index1, int index2);
     Line3D translateLineupright(const Line3D &line, const Line3D &directionline, float distance);
-    Line3D translateLineupleft(const Line3D &line, const Line3D &directionline, float distance);
+    // Line3D translateLineupleft(const Line3D &line, const Line3D &directionline, float distance);
     Eigen::Matrix3f init_estimate_R_one_pose(const std::vector<double> &camplane_equation, const std::vector<double> &lidarplane_equation,
                                              const Line3D &upRightCamLineEquation, const Line3D &downRightCamLineEquation, const Line3D &downLeftCamLineEquation, const Line3D &upLeftCamLineEquation,
                                              const Line3D &upRightLineEquation, const Line3D &downRightLineEquation, const Line3D &downLeftLineEquation, const Line3D &upLeftLineEquation,
@@ -151,7 +151,7 @@ public:
     void visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
-                              const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
+                            //   const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
                               const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
                             //   const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
@@ -162,6 +162,9 @@ public:
                               int viewer_id);
     void visualizeMultiplePointClouds(const std::vector<ChessboardProcessResult> &results);
     Eigen::Matrix3f calculate_A(const Eigen::Vector3f &l);
+
+    Line3D translateLineupleft(const Line3D &line, const Line3D &directionline, float distance);
+
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
 
