@@ -39,12 +39,23 @@ struct ContourPoint
     int index;
     double angle;
 };
-
+// struct ContourPoint {
+//     int index;
+//     double curvature;
+// };
 struct Line3D
 {
     Eigen::Vector3f point;     // 直线上的一个点
     Eigen::Vector3f direction; // 直线的方向向量
 };
+
+// struct ContourPointCompare
+// {
+//     bool operator()(const ContourPoint &point1, const ContourPoint &point2)
+//     {
+//         return point1.curvature > point2.curvature;
+//     }
+// };
 
 struct ContourPointCompare
 {
@@ -53,7 +64,6 @@ struct ContourPointCompare
         return point1.angle > point2.angle;
     }
 };
-
 // 新增一个结构体来存储处理结果
 struct ChessboardProcessResult
 {
@@ -100,6 +110,8 @@ public:
     double *converto_imgpts(double x, double y, double z, cv::Mat &cameraMatrix);
 
     void extractROI(const sensor_msgs::Image::ConstPtr &img, cv::Mat &corner_points, cv::Mat &cameraMatrix);
+
+    // std::vector<ContourPoint> calculateCurvature(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_hull, int contour_point_size);
     void getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud);
     void extractPointsInUpRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
                                 pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud);

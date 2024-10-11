@@ -1,8 +1,21 @@
 #include "llc.h"
 #include <iostream>
 #include <thread>
+#include "DBSCAN_simple.h"
+#include "DBSCAN_precomp.h"
+#include "DBSCAN_kdtree.h"
 
 std::condition_variable condition_variable;
+
+Eigen::Vector3d getPoint(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud, int index)
+{
+    return Eigen::Vector3d(cloud->points[index].x, cloud->points[index].y, cloud->points[index].z);
+}
+
+double distance(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2)
+{
+    return (p1 - p2).norm();
+}
 
 bool is_exit = false;
 
@@ -55,23 +68,66 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
     std::cout << input_cloud->size() << std::endl;
     pcd_clustering(input_cloud, indices_clusters); // 聚类
 
-    bool found_chessboard = false;
-    for (const auto &cluster : indices_clusters)
-    {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr potential_plane(new pcl::PointCloud<pcl::PointXYZ>);
-        if (extractChessboard(input_cloud, cluster, potential_plane))
-        {
-            plane_pcds.push_back(potential_plane);
-            found_chessboard = true;
-            std::cout << "提取到标定板点云!" << std::endl;
-            display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
-        }
-        else
-        {
-            std::cout << "GG" << std::endl;
-        }
-    }
+    bool found_chessboard = true;
+    // for (const auto &cluster : indices_clusters)
+    // {
+    //     pcl::PointCloud<pcl::PointXYZ>::Ptr potential_plane(new pcl::PointCloud<pcl::PointXYZ>);
+    //     if (extractChessboard(input_cloud, cluster, potential_plane))
+    //     {
+    //         plane_pcds.push_back(potential_plane);
+    //         found_chessboard = true;
+    //         std::cout << "提取到标定板点云!" << std::endl;
+    //         display_colored_by_depth(potential_plane); // 如果需要显示每个标定板
+    //     }
+    //     else
+    //     {
+    //         plane_pcds.push_back(potential_plane);
+    //         display_colored_by_depth(potential_plane);
+    //         std::cout << "GG" << std::endl;
+    //     }
+    // }
 
+    // std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> valid_clusters;
+    for (std::size_t i = 0; i < indices_clusters.size(); ++i)
+    {
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cluster(new pcl::PointCloud<pcl::PointXYZ>);
+
+        for (std::size_t j = 0; j < indices_clusters[i].indices.size(); ++j)
+        {
+            cluster->points.push_back(input_cloud->points[indices_clusters[i].indices[j]]);
+        }
+
+        // pcl::io::savePCDFile("/home/conan/lcc/src/lcc_ros1/input/cluster.pcd", *cluster);
+
+        // plane_pcds.push_back(cluster);
+
+    //     std::cout << "点云大小：" << cluster->size() << std::endl;
+    //     std::cout << "宽度：" << cluster->width << "，高度：" << cluster->height << std::endl;
+
+    //     // 如果是非组织化的点云，设置正确的宽度和高度
+    //     cluster->width = cluster->size();
+    //     cluster->height = 1;
+    //     cluster->is_dense = false;
+
+    //     std::string save_path = "/home/conan/lcc/src/lcc_ros1/input/"; // 替换为您想要的路径
+    //     std::string file_name = "cluster.pcd";
+    //     std::string full_path = save_path + file_name;
+
+    //     // 创建目录（如果不存在）
+    //     boost::filesystem::create_directories(save_path);
+
+    //     // 保存文件
+    //     if (pcl::io::savePCDFile(full_path, *cluster) == 0)
+    //     {
+    //         std::cout << "PCD 文件成功保存到：" << full_path << std::endl;
+    //     }
+    //     else
+    //     {
+    //         std::cerr << "保存 PCD 文件失败。" << std::endl;
+    //     }
+
+    //     pcl::io::savePCDFileBinary(full_path, *cluster);
+    }
     return found_chessboard;
 }
 
@@ -117,24 +173,35 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
 
 void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters)
 {
-    pcl::search::Search<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
-    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
-    normal_estimator.setSearchMethod(tree);
-    normal_estimator.setInputCloud(input_pcd);
-    normal_estimator.setKSearch(50);
-    normal_estimator.compute(*normals);
+    // pcl::search::Search<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+    // pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
+    // normal_estimator.setSearchMethod(tree);
+    // normal_estimator.setInputCloud(input_pcd);
+    // normal_estimator.setKSearch(120);
+    // normal_estimator.compute(*normals);
 
-    pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-    reg.setMinClusterSize(90);
-    reg.setMaxClusterSize(6000);
-    reg.setSearchMethod(tree);
-    reg.setNumberOfNeighbours(60);
-    reg.setInputCloud(input_pcd);
-    reg.setInputNormals(normals);
-    reg.setSmoothnessThreshold(5.0 / 180.0 * M_PI);
-    reg.setCurvatureThreshold(0.5);
-    reg.extract(pcd_clusters);
+    // pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+    // reg.setMinClusterSize(90);
+    // reg.setMaxClusterSize(6000);
+    // reg.setSearchMethod(tree);
+    // reg.setNumberOfNeighbours(60);
+    // reg.setInputCloud(input_pcd);
+    // reg.setInputNormals(normals);
+    // reg.setSmoothnessThreshold(5.0 / 180.0 * M_PI);
+    // reg.setCurvatureThreshold(0.5);
+    // reg.extract(pcd_clusters);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    tree->setInputCloud(input_pcd);
+
+    DBSCANKdtreeCluster<pcl::PointXYZ> ec;
+    ec.setCorePointMinPts(5);
+    ec.setClusterTolerance(0.5);
+    ec.setMinClusterSize(4);
+    ec.setMaxClusterSize(1000);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(input_pcd);
+    ec.extract(pcd_clusters);
 }
 
 bool LLC::check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd)
@@ -160,7 +227,7 @@ void LLC::display_colored_by_depth(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> fildColor(cloud, "z"); // 按照z字段进行渲染
 
     viewer1->addPointCloud<pcl::PointXYZ>(cloud, fildColor, "sample cloud");
-    viewer1->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "sample cloud"); // 设置点云大小
+    viewer1->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "sample cloud"); // 设置点云大小
 
     while (!viewer1->wasStopped())
     {
@@ -208,6 +275,56 @@ bool LLC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
     return false;
 }
 
+// std::vector<ContourPoint> LLC::calculateCurvature(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_hull, int contour_point_size)
+// {
+//     std::vector<ContourPoint> contour_point_vec(contour_point_size);
+
+//     for (int i = 0; i < contour_point_size; i++)
+//     {
+//         contour_point_vec[i].index = i;
+
+//         Eigen::Vector3d current_point = getPoint(cloud_hull, i);
+
+//         // 寻找前后各两个点中距离最近的点
+//         int prev_index1 = (i - 1 + contour_point_size) % contour_point_size;
+//         int prev_index2 = (i - 2 + contour_point_size) % contour_point_size;
+//         int next_index1 = (i + 1) % contour_point_size;
+//         int next_index2 = (i + 2) % contour_point_size;
+
+//         Eigen::Vector3d prev_point1 = getPoint(cloud_hull, prev_index1);
+//         Eigen::Vector3d prev_point2 = getPoint(cloud_hull, prev_index2);
+//         Eigen::Vector3d next_point1 = getPoint(cloud_hull, next_index1);
+//         Eigen::Vector3d next_point2 = getPoint(cloud_hull, next_index2);
+
+//         // 计算距离并找出最近的点
+//         double dist_prev1 = distance(current_point, prev_point1);
+//         double dist_prev2 = distance(current_point, prev_point2);
+//         double dist_next1 = distance(current_point, next_point1);
+//         double dist_next2 = distance(current_point, next_point2);
+
+//         Eigen::Vector3d nearest_prev = (dist_prev1 < dist_prev2) ? prev_point1 : prev_point2;
+//         Eigen::Vector3d nearest_next = (dist_next1 < dist_next2) ? next_point1 : next_point2;
+
+//         // 计算当前点到最近的前后点的差向量
+//         Eigen::Vector3d diff_prev = current_point - nearest_prev;
+//         Eigen::Vector3d diff_next = current_point - nearest_next;
+
+//         // 计算曲率
+//         double curvature = (diff_prev + diff_next).norm() / (2.0 * std::max(diff_prev.norm(), diff_next.norm()));
+
+//         contour_point_vec[i].curvature = curvature;
+//     }
+
+//     // 根据曲率从大到小排序
+//     std::sort(contour_point_vec.begin(), contour_point_vec.end(),
+//               [](const ContourPoint &a, const ContourPoint &b)
+//               {
+//                   return a.curvature > b.curvature;
+//               });
+
+//     return contour_point_vec;
+// }
+
 // 从得到的激光边界凸出最大的十个点里，筛选出板子的四个角点，四个点顺序顺时针，板子最上面的点为第一个点
 void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
 {
@@ -232,6 +349,7 @@ void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
             if (point.z > z_max_point.z)
                 z_max_point = point;
         }
+
         // 删除除了最小和最大 x 值以及最小和最大 z 值的四个点之外的其他点
         pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZ>);
         for (const auto &point : corners_cloud->points)
@@ -245,6 +363,12 @@ void LLC::getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud)
             else if (point.x == z_max_point.x && point.y == z_max_point.y && point.z == z_max_point.z)
                 filtered_cloud->points.push_back(point);
         }
+        // filtered_cloud->points.push_back(x_min_point);
+        // filtered_cloud->points.push_back(x_max_point);
+        // filtered_cloud->points.push_back(z_min_point);
+        // filtered_cloud->points.push_back(z_max_point);
+
+        std::cout << filtered_cloud->size() << "tichu" << std::endl;
 
         // 更新点云数据为筛选后的结果
         corners_cloud->points = filtered_cloud->points;
@@ -697,10 +821,13 @@ Line3D LLC::translateLineupleft(const Line3D &line, const Line3D &directionline,
     Line3D newLine;
 
     // 判断方向向量，如果方向向量是右上的，则向右下移动
-    if (directionline.direction[1] > 0){
+    if (directionline.direction[1] > 0)
+    {
         // 这里反转方向向量，使其从右上方向移动到右下
         newLine.point = line.point + distance * (-directionline.direction);
-    } else {
+    }
+    else
+    {
         // 如果本身就是右下方向，直接按原方向移动
         newLine.point = line.point + distance * directionline.direction;
     }
@@ -812,10 +939,10 @@ std::vector<double> LLC::calculatelidar_plane_equation(const pcl::PointCloud<pcl
 
 void LLC::visualizePointClouds(pcl::visualization::PCLVisualizer &viewer,
                                const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud_projected,
-                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
-                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
-                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
-                            //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
+                               //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectuprightpoints,
+                               //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownrightpoints,
+                               //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectdownleftpoints,
+                               //    const pcl::PointCloud<pcl::PointXYZ>::Ptr &projectupleftpoints,
                                //    const pcl::PlanarPolygon<pcl::PointXYZ> &polygon,
                                const Line3D &upRightLineEquation,
                                const Line3D &downRightLineEquation,
@@ -873,7 +1000,7 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     seg.setOptimizeCoefficients(true);
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.01);
+    seg.setDistanceThreshold(0.05);
 
     seg.setInputCloud(plane_cloud);
     seg.segment(*inliers, *coefficients);
@@ -895,11 +1022,20 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     chull.setAlpha(0.2);
     chull.reconstruct(*cloud_hull);
 
+    display_colored_by_depth(cloud_hull);
+    for (size_t i = 0; i < cloud_hull->points.size(); ++i)
+    {
+        std::cout << "Corner " << i << ": "
+                  << cloud_hull->points[i].x << ", "
+                  << cloud_hull->points[i].y << ", "
+                  << cloud_hull->points[i].z << std::endl;
+    }
     int contour_point_size = cloud_hull->points.size();
 
     std::vector<ContourPoint> contour_point_vec;
     contour_point_vec.resize(contour_point_size);
 
+    // contour_point_vec = calculateCurvature(cloud_hull, contour_point_size);
     // 计算边框点相邻俩俩点向量的夹角，并记录下对应夹角的点的索引，进行由大到小排序
     //********************************
     for (int i = 0; i < contour_point_size; i++)
@@ -950,17 +1086,30 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     // 取出角度大的前十个，并从中筛选出板子的四个角点
     //********************************
     pcl::PointCloud<pcl::PointXYZ>::Ptr corners_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-    corners_cloud->width = 20;
+    corners_cloud->width = contour_point_vec.size();
     corners_cloud->height = 1;
     corners_cloud->is_dense = false;
-    corners_cloud->resize(10 * 2);
-    for (int i = 0; i < 20; i++)
+    // corners_cloud->resize(contour_point_vec.size());
+    for (int i = 0; i < contour_point_vec.size(); i++)
     {
         int index = contour_point_vec[i].index;
         // std::cout << index << std::endl;
         corners_cloud->points[i] = cloud_hull->points[index];
     }
+    std::cout << corners_cloud->size() << std::endl;
+
     getfourpoints(corners_cloud);
+    std::cout << corners_cloud->size() << std::endl;
+    for (size_t i = 0; i < corners_cloud->points.size(); ++i)
+    {
+        std::cout << "Corner " << i << ": "
+                  << corners_cloud->points[i].x << ", "
+                  << corners_cloud->points[i].y << ", "
+                  << corners_cloud->points[i].z << std::endl;
+    }
+
+    display_colored_by_depth(corners_cloud);
+
     //********************************
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr uprightpoints(new pcl::PointCloud<pcl::PointXYZ>);
@@ -984,7 +1133,6 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     extractPointsInDownLeft(contour, corners_cloud, downleftpoints);
     extractPointsInUpLeft(contour, corners_cloud, upleftpoints);
 
-
     // 过滤影响拟合直线的点
     filterUpandDownRightPoints(uprightpoints);
     filterUpandDownRightPoints(downrightpoints);
@@ -995,8 +1143,8 @@ ChessboardProcessResult LLC::processChessboard(pcl::PointCloud<pcl::PointXYZ>::P
     downLeftLineEquation = getLidarLineEquation(downleftpoints);
     upLeftLineEquation = getLidarLineEquation(upleftpoints);
     upRightLineEquation = getLidarLineEquation(uprightpoints);
-    // downRightLineEquation = getLidarLineEquation(downrightpoints);
-    downRightLineEquation = translateLineupleft(upLeftLineEquation,upRightLineEquation,1.2);
+    downRightLineEquation = getLidarLineEquation(downrightpoints);
+    // downRightLineEquation = translateLineupleft(upLeftLineEquation,upRightLineEquation,1.2);
     // 对激光板子四条边直线方向归一化
     //********************************
     if (corners_cloud->points[0].y < 0)

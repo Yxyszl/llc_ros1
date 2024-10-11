@@ -1,7 +1,7 @@
 {
     "lidar_paths": {
-      "left": "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/11.pcd",
-      "right": "/home/conan/llc_ros1/llrc_ws/in_out/llc_in_out/22.pcd"
+      "left": "/home/conan/llc_ros1/llrc_ws/src/in_out/llc_in_out/16_11.pcd",
+      "right": "/home/conan/llc_ros1/llrc_ws/src/in_out/llc_in_out/16_22.pcd"
     }
 }
   
