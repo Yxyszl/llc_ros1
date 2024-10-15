@@ -72,7 +72,8 @@
         "random": "cpp",
         "core": "cpp",
         "numericaldiff": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "*.ipp": "cpp"
     },
     "cmake.sourceDirectory": "/home/conan/llc_ros1/llc/src/llc_ros1"
 }

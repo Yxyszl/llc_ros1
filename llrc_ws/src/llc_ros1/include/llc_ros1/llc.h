@@ -112,17 +112,17 @@ public:
     void extractROI(const sensor_msgs::Image::ConstPtr &img, cv::Mat &corner_points, cv::Mat &cameraMatrix);
 
     // std::vector<ContourPoint> calculateCurvature(const pcl::PointCloud<pcl::PointXYZ>::Ptr& cloud_hull, int contour_point_size);
-    void getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud);
+    void getfourpoints(pcl::PointCloud<pcl::PointXYZ>::Ptr &corners_cloud,std::string position);
     void extractPointsInUpRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
-                                pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud);
+                                pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud,std::string position);
     void extractPointsInDownRight(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
-                                  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud);
+                                  pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud,std::string position);
     void extractPointsInUpLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
-                               pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud);
+                               pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud,std::string position);
     void extractPointsInDownLeft(pcl::PointCloud<pcl::PointXYZ> input_cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr fourpoints,
-                                 pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud);
-    void filterUpandDownRightPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-    void filterUpandDownLeftPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+                                 pcl::PointCloud<pcl::PointXYZ>::Ptr output_cloud,std::string position);
+    void filterUpandDownRightPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,std::string position);
+    void filterUpandDownLeftPoints(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud,std::string position);
     Line3D getLidarLineEquation(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     pcl::PointCloud<pcl::PointXYZ>::Ptr visualizeLine(const Line3D &line);
     Eigen::Vector3f computeLineIntersection(const Line3D &line1, const Line3D &line2);
@@ -158,7 +158,7 @@ public:
 
     void Preexecute(const std::string &lidar_path_left, const std::string &lidar_path_right);
 
-    ChessboardProcessResult processChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
+    ChessboardProcessResult processChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud,std::string position );
     // ChessboardProcessResult processChessboard_right(pcl::PointCloud<pcl::PointXYZ>::Ptr plane_cloud);
 
     Eigen::Matrix3f init_estimate_R(const std::vector<ChessboardProcessResult> &left_results, const std::vector<ChessboardProcessResult> &right_results);
