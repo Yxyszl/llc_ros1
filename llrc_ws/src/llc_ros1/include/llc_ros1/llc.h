@@ -147,7 +147,7 @@ public:
 
     void display_colored_by_depth(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
     void pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std::string &position);
-    void pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters);
+    void pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters,const std::string position);
     bool check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd);
     bool extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
                            const pcl::PointIndices &cluster,

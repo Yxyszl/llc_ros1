@@ -8,14 +8,19 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   pcl_ros
   radar_msgs
+  rosbag
+  dynamic_reconfigure
 )
 find_package(PCL REQUIRED)
+generate_dynamic_reconfigure_options(
+        cfg/bounds.cfg
+        )
 find_package(OpenCV)
 find_package(cv_bridge REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 catkin_package(
- CATKIN_DEPENDS roscpp rospy std_msgs radar_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs radar_msgs rosbag
 )
 add_library(lrc_lib SHARED
         src/lrc.cpp
@@ -46,4 +51,5 @@ target_link_libraries(lrc
   ${OpenCV_LIBRARIES}
   ${cv_bridge_LIBRARIES} 
   ${sensor_msgs_LIBRARIES}
+  yaml-cpp
 )

@@ -66,7 +66,7 @@ bool LLC::extractPlaneCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_cloud,
     pass_filter(input_cloud, position); // 带通滤波
     std::vector<pcl::PointIndices> indices_clusters;
     std::cout << input_cloud->size() << std::endl;
-    pcd_clustering(input_cloud, indices_clusters); // 聚类
+    pcd_clustering(input_cloud, indices_clusters,position); // 聚类
 
     bool found_chessboard = true;
     // for (const auto &cluster : indices_clusters)
@@ -171,7 +171,7 @@ void LLC::pass_filter(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, const std:
     }
 }
 
-void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters)
+void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::vector<pcl::PointIndices> &pcd_clusters,const std::string position)
 {
     // pcl::search::Search<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     // pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
@@ -191,17 +191,72 @@ void LLC::pcd_clustering(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd, std::ve
     // reg.setSmoothnessThreshold(5.0 / 180.0 * M_PI);
     // reg.setCurvatureThreshold(0.5);
     // reg.extract(pcd_clusters);
+    // 构建 KdTree 搜索结构
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
     tree->setInputCloud(input_pcd);
 
+    // 设置 DBSCAN 聚类参数
     DBSCANKdtreeCluster<pcl::PointXYZ> ec;
     ec.setCorePointMinPts(5);
-    ec.setClusterTolerance(0.5);
-    ec.setMinClusterSize(4);
-    ec.setMaxClusterSize(1000);
+    ec.setClusterTolerance(0.5);  // 聚类距离容忍度
+    ec.setMinClusterSize(4);      // 最小聚类点数
+    ec.setMaxClusterSize(1000);   // 最大聚类点数
     ec.setSearchMethod(tree);
     ec.setInputCloud(input_pcd);
-    ec.extract(pcd_clusters);
+    ec.extract(pcd_clusters);     // 提取聚类
+
+    // 定义一个容器存储聚类索引及其代表性值
+    std::vector<std::pair<int, float>> cluster_representative_value;
+
+    // 遍历每个聚类，计算每个聚类的代表性值
+    for (size_t i = 0; i < pcd_clusters.size(); ++i) {
+        float max_y = std::numeric_limits<float>::lowest();  // 用于计算最大 y 值
+        float min_x = std::numeric_limits<float>::max();     // 用于计算最小 x 值
+
+        // 遍历该聚类的所有点，计算最大 y 值和最小 x 值
+        for (const auto& idx : pcd_clusters[i].indices) {
+            float y_value = input_pcd->points[idx].y;
+            float x_value = input_pcd->points[idx].x;
+            
+            if (y_value > max_y) {
+                max_y = y_value;
+            }
+            if (x_value < min_x) {
+                min_x = x_value;
+            }
+        }
+
+        // 根据 position 决定存储最大 y 值还是最小 x 值
+        if (position == "right") {
+            cluster_representative_value.emplace_back(i, max_y);  // 按 y 从大到小
+        } else if (position == "left") {
+            cluster_representative_value.emplace_back(i, min_x);  // 按 x 从小到大
+        }
+    }
+
+    // 按照代表性值排序
+    if (position == "right") {
+        // 按最大 y 值从大到小排序
+        std::sort(cluster_representative_value.begin(), cluster_representative_value.end(),
+                  [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
+                      return a.second > b.second;
+                  });
+    } else if (position == "left") {
+        // 按最小 x 值从小到大排序
+        std::sort(cluster_representative_value.begin(), cluster_representative_value.end(),
+                  [](const std::pair<int, float>& a, const std::pair<int, float>& b) {
+                      return a.second < b.second;
+                  });
+    }
+
+    // 根据排序结果重新组织聚类顺序
+    std::vector<pcl::PointIndices> sorted_clusters;
+    for (const auto& pair : cluster_representative_value) {
+        sorted_clusters.push_back(pcd_clusters[pair.first]);
+    }
+
+    // 将排序后的结果赋值回原始 pcd_clusters
+    pcd_clusters = sorted_clusters;
 }
 
 bool LLC::check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd)
