@@ -42,22 +42,23 @@ LRC::LRC(ros::NodeHandle nh)
 {
     nh.getParam("city", city);
     nh.getParam("lidar_position", lidar_position);
-    nh.getParam("radar_position", lidar_position);
+    nh.getParam("radar_position", radar_position);
+    nh.getParam("lrc_path", lrc_path);
 
+    // lidar informarion from rosbag
+    topic_cloud=lidarprocess(lidar_position,lrc_path);
+
+    // radar infomation process
     if (radar_position == "front" || radar_position == "front_right" || radar_position == "front_left")
     {
         if (city == "wuhu")
         {
             radar_front_sub = nh.subscribe("/" + radar_position + "_radar", 10, &LRC::vRadarCallback, this);
-
-
         }
         else if (city == "tongling")
         {
             // src_points_front = nh.subscribe("/front_lidar", 10, &LRC::calibration_show_front, this);
             radar_front_sub = nh.subscribe("/" + radar_position + "_radar", 10, &LRC::vRadarCallback, this);
-
-
         }
     }
     else if (radar_position == "back")
@@ -66,13 +67,11 @@ LRC::LRC(ros::NodeHandle nh)
         {
             // src_points_back = nh.subscribe("/back_lidar", 10, &LRC::calibration_show_back, this);
             radar_front_sub = nh.subscribe("/" + radar_position + "_radar", 10, &LRC::vRadarCallback, this);
-
         }
         else if (city == "tongling")
         {
             // src_points_back = nh.subscribe("/back_lidar", 10, &LRC::calibration_show_back, this);
             radar_front_sub = nh.subscribe("/" + radar_position + "_radar", 10, &LRC::vRadarCallback, this);
-
         }
     }
 }
@@ -81,6 +80,84 @@ void LRC::bounds_callback(LRC_ROS::boundsConfig &config, uint32_t level)
 {
     bound_ = config;
 }
+
+// lidar infomation from rosbag
+std::unordered_map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> LRC::lidarprocess(std::string lidar_position, std::string lrc_path)
+{
+    bool is_extrinsic_calibration = true;
+    std::vector<std::string> topic_vec;
+    std::unordered_map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> topic_cloud_map;
+
+    // 根据城市初始化话题向量
+    // if (city == "wuhu") {
+    topic_vec = {"/front_left_lidar", "/front_right_lidar", "/back_lidar"};
+    // } else if (city == "tongling") {
+    // topic_vec = {"/front_lidar", "/front_left_lidar", "/front_right_lidar", "/back_lidar"};
+    // }
+
+    // 为每个话题初始化点云指针
+    for (const auto &topic : topic_vec)
+    {
+        topic_cloud_map[topic] = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>());
+    }
+
+    if (is_extrinsic_calibration)
+    {
+        std::cout << "Starting extrinsic calibration process..." << std::endl;
+        rosbag::Bag bag;
+        // std::string bag_path;
+
+        // 选择对应的bag文件
+
+        if (lidar_position == "front")
+        {
+            bag.open(lrc_path + "/in_out/initial_value/lidar_front.bag");
+            // bag.open(mlc_ros1_path + "/in_out/initial_value/2024-01-31-15-59-44.bag");
+        }
+        else if (lidar_position == "back")
+        {
+            bag.open(lrc_path + "/in_out/initial_value/lidar_back.bag");
+            // bag.open(mlc_ros1_path + "/in_out/initial_value/2024-01-31-15-57-35.bag");
+        }
+
+        // 读取bag文件中的点云数据
+        for (const rosbag::MessageInstance &m : rosbag::View(bag))
+        {
+            // 检查当前消息的话题是否在我们的话题列表中
+            if (std::find(topic_vec.begin(), topic_vec.end(), m.getTopic()) != topic_vec.end())
+            {
+                sensor_msgs::PointCloud2::ConstPtr pc_msg = m.instantiate<sensor_msgs::PointCloud2>();
+
+                if (pc_msg != nullptr)
+                {
+                    // 将ROS消息转换为PCL点云
+                    pcl::fromROSMsg(*pc_msg, *topic_cloud_map[m.getTopic()]);
+
+                    // 检查是否所有话题都已获取到点云数据
+                    bool all_topics_received = true;
+                    for (const auto &topic : topic_vec)
+                    {
+                        if (topic_cloud_map[topic]->empty())
+                        {
+                            all_topics_received = false;
+                            break;
+                        }
+                    }
+                    // 如果所有话题都收到数据，则退出循环
+                    if (all_topics_received)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+        bag.close();
+    }
+
+    return topic_cloud_map;
+}
+
 // radar callback
 void LRC::vRadarCallback(const radar_msgs::RadarObjectList &radar_msg)
 {
@@ -100,7 +177,6 @@ void LRC::vRadarCallback(const radar_msgs::RadarObjectList &radar_msg)
         po_radar_cloud->push_back(single_point);
     }
 }
-
 pcl::PointCloud<pcl::PointXYZ>::Ptr LRC::visualizeLine(const Line3D &line)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr line_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -227,7 +303,6 @@ bool LRC::check_board_size(pcl::PointCloud<pcl::PointXYZ>::Ptr board_pcd)
         return false;
     return true;
 }
-
 
 bool LRC::extractChessboard(pcl::PointCloud<pcl::PointXYZ>::Ptr &input_pcd,
                             const pcl::PointIndices &cluster,
@@ -788,8 +863,6 @@ Line3D LRC::getLidarLineEquation(const pcl::PointCloud<pcl::PointXYZ>::Ptr cloud
     return line;
 }
 
-
-
 // 计算两个直线的交点，得到激光数据中板子的角点
 Eigen::Vector3f LRC::computeLineIntersection(const Line3D &line1, const Line3D &line2)
 {
@@ -1026,7 +1099,6 @@ void LRC::Preexecute(const std::string &lidar_path_left, const std::string &lida
         ChessboardProcessResult result = processChessboard(plane_pcd1, right);
         right_results.push_back(result);
     }
-
 }
 
 LRC::~LRC()
@@ -1038,8 +1110,6 @@ int main(int argc, char *argv[])
     std::cout << "-------------" << std::endl;
     ros::init(argc, argv, "mulity lidar calibration");
     ros::NodeHandle nh;
-
-
 
     return 0;
 }

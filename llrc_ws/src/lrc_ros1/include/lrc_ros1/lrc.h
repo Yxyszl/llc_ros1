@@ -43,6 +43,10 @@
 #include <utils.h>
 #include <pcl/common/pca.h>
 
+#include <unordered_map>
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+
 struct ContourPoint
 {
     int index;
@@ -160,6 +164,8 @@ public:
     // radar function
     void bounds_callback(LRC_ROS::boundsConfig &config, uint32_t level);
     void vRadarCallback(const radar_msgs::RadarObjectList &radar_msg);
+    
+    std::unordered_map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> lidarprocess(std::string lidar_position,std::string lrc_path);
 
     Line3D upRightCamLineEquation, downRightCamLineEquation, downLeftCamLineEquation, upLeftCamLineEquation;
     pcl::PointCloud<pcl::PointXYZ>::Ptr linea, lineb, linec, lined;
@@ -172,8 +178,11 @@ public:
     int squaresize = 120;
     // std::string kuangshan;
     int viewer_id = 0;
-    std::string city, radar_position, lidar_position;
+    std::string city, radar_position, lidar_position, lrc_path;
     LRC_ROS::boundsConfig bound_;
+    // std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> base_pc;
+    std::unordered_map<std::string, pcl::PointCloud<pcl::PointXYZ>::Ptr> topic_cloud;
+
     ~LRC();
 
     // std::string radar_positin, lidar_position, city;
