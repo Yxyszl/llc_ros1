@@ -18,6 +18,9 @@ generate_dynamic_reconfigure_options(
 find_package(OpenCV)
 find_package(cv_bridge REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(Ceres REQUIRED)
+
+find_package(roslz4 REQUIRED)
 
 catkin_package(
  CATKIN_DEPENDS roscpp rospy std_msgs radar_msgs rosbag
@@ -33,6 +36,7 @@ target_include_directories(lrc_lib PRIVATE
 target_link_libraries(lrc_lib
         ${catkin_LIBRARIES}
         ${CERES_LIBRARIES}
+        ${roslz4_LIBRARIES}
         )
 
 include_directories(
@@ -51,5 +55,6 @@ target_link_libraries(lrc
   ${OpenCV_LIBRARIES}
   ${cv_bridge_LIBRARIES} 
   ${sensor_msgs_LIBRARIES}
+  ${CERES_LIBRARIES}
   yaml-cpp
 )
